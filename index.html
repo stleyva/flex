@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FlexSales — OpenSea Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #07070F;
+    --surface:  #0D0D1A;
+    --border:   #1A1A2E;
+    --mint:     #00FFB2;
+    --mint-dim: #00FFB220;
+    --amber:    #FFB300;
+    --red:      #FF4D6A;
+    --text:     #C8D6E5;
+    --muted:    #3D4D60;
+    --mono:     'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .brand {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--mint);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .brand span { color: var(--text); opacity: 0.5; font-weight: 300; }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .dot.live { background: var(--mint); box-shadow: 0 0 8px var(--mint); animation: blink 1.8s infinite; }
+  .dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── CONNECT PANEL ── */
+  .connect-panel {
+    max-width: 480px;
+    margin: 80px auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 32px;
+  }
+
+  .connect-panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--mint);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .connect-panel p {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+
+  .connect-panel p a {
+    color: var(--mint);
+    text-decoration: none;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .api-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-input:focus { border-color: var(--mint); }
+  .api-input::placeholder { color: var(--muted); }
+
+  .btn {
+    background: var(--mint);
+    color: #000;
+    border: none;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 18px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn.danger {
+    background: var(--red);
+  }
+
+  .error-msg {
+    color: var(--red);
+    font-size: 11px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .instant-row { margin-top: 16px; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--mint);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+    text-decoration-color: #00FFB240;
+  }
+
+  .link-btn:hover { text-decoration-color: var(--mint); }
+  .link-btn:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+
+  .instant-fallback {
+    display: none;
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .instant-fallback p {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+
+  .instant-fallback code {
+    color: var(--text);
+    font-size: 11px;
+  }
+
+  .instant-fallback .fine-print {
+    margin-bottom: 0;
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  .code-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+  }
+
+  .code-row code {
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .btn-copy {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--mint);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 9px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+
+  .btn-copy:hover { border-color: var(--mint); }
+
+  .instant-success {
+    color: var(--mint);
+    font-size: 11px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #app { display: none; }
+
+  .stats-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+
+  .stat-box {
+    flex: 1;
+    min-width: 120px;
+    padding: 14px 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .stat-box:last-child { border-right: none; }
+
+  .stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .stat-value.accent { color: var(--mint); }
+  .stat-value.amber  { color: var(--amber); }
+
+  /* ── CONTROLS ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .windows {
+    display: flex;
+    gap: 0;
+  }
+
+  .win-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    padding: 12px 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .win-btn:hover { color: var(--text); }
+  .win-btn.active { color: var(--mint); border-bottom-color: var(--mint); }
+
+  .sort-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    color: var(--muted);
+    padding: 12px 0;
+  }
+
+  .sort-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: all 0.15s;
+  }
+
+  .sort-btn.active, .sort-btn:hover {
+    border-color: var(--mint);
+    color: var(--mint);
+  }
+
+  .search-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 10px;
+    outline: none;
+    width: 160px;
+    transition: border-color 0.2s;
+  }
+
+  .search-input:focus { border-color: var(--mint); }
+  .search-input::placeholder { color: var(--muted); }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  thead th:hover { color: var(--text); }
+  thead th.sort-asc::after { content: ' ↑'; color: var(--mint); }
+  thead th.sort-desc::after { content: ' ↓'; color: var(--mint); }
+
+  thead th:first-child { width: 40px; text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: var(--mint-dim); }
+
+  tbody tr.flash {
+    animation: rowflash 0.6s ease-out;
+  }
+
+  @keyframes rowflash {
+    0%   { background: #00FFB230; }
+    100% { background: transparent; }
+  }
+
+  td {
+    padding: 11px 16px;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  td:first-child {
+    text-align: center;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .col-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .pulse-dot.active {
+    background: var(--mint);
+    box-shadow: 0 0 6px var(--mint);
+    animation: pulse 1s ease-out;
+  }
+
+  @keyframes pulse {
+    0%   { transform: scale(1.8); opacity: 1; }
+    100% { transform: scale(1);   opacity: 1; }
+  }
+
+  .col-slug {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-slug a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .col-slug a:hover { color: var(--mint); }
+
+  .vol { color: var(--mint); font-weight: 600; }
+  .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
+
+  .count-badge {
+    display: inline-block;
+    background: var(--mint-dim);
+    color: var(--mint);
+    border: 1px solid #00FFB240;
+    border-radius: 2px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .sparkbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 20px;
+  }
+
+  .sparkbar-cell {
+    width: 4px;
+    background: var(--mint);
+    opacity: 0.4;
+    border-radius: 1px 1px 0 0;
+    transition: opacity 0.3s;
+  }
+
+  .sparkbar-cell.has-data { opacity: 1; }
+
+  /* ── FEED TICKER ── */
+  .feed-wrap {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 34px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+  }
+
+  .feed-label {
+    padding: 0 12px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--mint);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+    flex-shrink: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .feed-scroller {
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  .feed-inner {
+    display: inline-block;
+    animation: scroll-left 60s linear infinite;
+    will-change: transform;
+  }
+
+  @keyframes scroll-left {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .feed-item {
+    display: inline-block;
+    padding: 0 24px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .feed-item .fi-col { color: var(--text); font-weight: 600; }
+  .feed-item .fi-price { color: var(--mint); }
+  .feed-item .fi-sep { color: var(--border); margin: 0 4px; }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-icon { font-size: 32px; margin-bottom: 12px; }
+  .empty p { font-size: 12px; }
+
+  .disconnect-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .disconnect-row .key-hint {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* bottom padding for ticker */
+  #app { padding-bottom: 34px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">FlexSales <span>/ OpenSea Live</span></div>
+  <div class="status-pill">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">DISCONNECTED</span>
+  </div>
+</div>
+
+<!-- CONNECT PANEL -->
+<div id="connectPanel">
+  <div class="connect-panel">
+    <h2>Connect Stream</h2>
+    <p>
+      Paste your OpenSea API key to start receiving live sales via the
+      <a href="https://docs.opensea.io/reference/stream-api-overview" target="_blank" rel="noopener">Stream API</a>.
+      Your key stays in this tab — nothing is sent anywhere else.
+    </p>
+    <div class="input-row">
+      <input class="api-input" id="apiKeyInput" type="password" placeholder="opensea api key..." autocomplete="off" />
+      <button class="btn" id="connectBtn" onclick="connect()">Connect</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <div class="instant-row">
+      <button class="link-btn" id="instantBtn" onclick="tryInstantKey()">
+        Don't have a key? Try a free instant key →
+      </button>
+    </div>
+    <div class="instant-fallback" id="instantFallback">
+      <p>
+        OpenSea's API doesn't allow that request directly from a browser (no CORS),
+        so run this yourself and paste the <code>api_key</code> value above:
+      </p>
+      <div class="code-row">
+        <code id="curlCmd">curl -X POST https://api.opensea.io/api/v2/auth/keys</code>
+        <button class="btn-copy" onclick="copyCurl()">Copy</button>
+      </div>
+      <p class="fine-print">Free-tier key · expires in 30 days · 60 reads/min · max 3 key creations/hour/IP</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- DISCONNECT ROW -->
+  <div class="disconnect-row">
+    <span class="key-hint" id="keyHint"></span>
+    <button class="btn danger" style="font-size:10px;padding:5px 12px;" onclick="disconnect()">Disconnect</button>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-label">Total Sales</div>
+      <div class="stat-value accent" id="statTotal">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Volume (ETH)</div>
+      <div class="stat-value" id="statVolume">0.00</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Active Collections</div>
+      <div class="stat-value" id="statCollections">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Sales / Min</div>
+      <div class="stat-value amber" id="statRate">0.0</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Avg Sale (ETH)</div>
+      <div class="stat-value" id="statAvg">0.000</div>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="windows">
+      <button class="win-btn active" data-w="5"  onclick="setWindow(5,  this)">5M</button>
+      <button class="win-btn"        data-w="15" onclick="setWindow(15, this)">15M</button>
+      <button class="win-btn"        data-w="60" onclick="setWindow(60, this)">1H</button>
+      <button class="win-btn"        data-w="0"  onclick="setWindow(0,  this)">ALL</button>
+    </div>
+    <div class="sort-row">
+      <span>Sort:</span>
+      <button class="sort-btn active" onclick="setSort('volume', this)">Volume</button>
+      <button class="sort-btn" onclick="setSort('count', this)">Sales</button>
+      <button class="sort-btn" onclick="setSort('avg', this)">Avg</button>
+      <button class="sort-btn" onclick="setSort('top', this)">Top Sale</button>
+      <input class="search-input" id="searchInput" placeholder="filter collection…" oninput="render()" />
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap">
+    <table id="salesTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Collection</th>
+          <th onclick="setSort('count',  this)">Sales</th>
+          <th onclick="setSort('volume', this)">Volume (ETH)</th>
+          <th onclick="setSort('avg',    this)">Avg (ETH)</th>
+          <th onclick="setSort('top',    this)">Top Sale</th>
+          <th>Last Sale</th>
+          <th>Activity</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">📡</div>
+      <p>Waiting for sales…</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- FEED TICKER -->
+<div class="feed-wrap" id="feedWrap" style="display:none;">
+  <div class="feed-label">LIVE</div>
+  <div class="feed-scroller">
+    <div class="feed-inner" id="feedInner"></div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+let ws = null;
+let heartbeatInterval = null;
+let renderInterval = null;
+let sales = [];            // { ts, slug, name, ethPrice, txHash, permalink }
+let collections = {};      // slug → { slug, name, sales[] }
+let windowMinutes = 5;
+let sortKey = 'volume';
+let feedItems = [];
+let refCount = 10;
+
+// Per-collection pulse timers
+let pulseTimers = {};
+
+// Spark data: last 12 one-minute buckets per collection
+let sparkData = {};
+
+// ──────────────────────────────────────────────
+// CONNECT
+// ──────────────────────────────────────────────
+function connect() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showError('Please enter your OpenSea API key.'); return; }
+
+  setStatus('connecting', 'CONNECTING…');
+
+  const url = `wss://stream.openseabeta.com/socket/websocket?token=${key}`;
+
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    showError('WebSocket connection failed. Check your key and try again.');
+    setStatus('error', 'ERROR');
+    return;
+  }
+
+  ws.onopen = () => {
+    setStatus('live', 'LIVE');
+    showApp(key);
+
+    // Join all collections
+    ws.send(JSON.stringify({
+      topic: 'collection:*',
+      event: 'phx_join',
+      payload: {},
+      ref: String(refCount++)
+    }));
+
+    // Heartbeat every 25s
+    heartbeatInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          topic: 'phoenix',
+          event: 'heartbeat',
+          payload: {},
+          ref: String(refCount++)
+        }));
+      }
+    }, 25000);
+
+    // Render every 3s
+    renderInterval = setInterval(render, 3000);
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    } catch {}
+  };
+
+  ws.onerror = () => {
+    showError('Connection error. Check your API key.');
+    setStatus('error', 'ERROR');
+  };
+
+  ws.onclose = () => {
+    if (document.getElementById('app').style.display !== 'none') {
+      setStatus('error', 'DISCONNECTED');
+    }
+    clearInterval(heartbeatInterval);
+    clearInterval(renderInterval);
+  };
+}
+
+function disconnect() {
+  if (ws) { ws.close(); ws = null; }
+  clearInterval(heartbeatInterval);
+  clearInterval(renderInterval);
+  sales = [];
+  collections = {};
+  feedItems = [];
+  sparkData = {};
+  pulseTimers = {};
+
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('connectPanel').style.display = '';
+  document.getElementById('feedWrap').style.display = 'none';
+  document.getElementById('apiKeyInput').value = '';
+  setStatus('off', 'DISCONNECTED');
+}
+
+function handleMessage(msg) {
+  if (!msg || !msg.event) return;
+
+  // Ignore join confirmations and heartbeats
+  if (msg.event === 'phx_reply' || msg.event === 'phx_close') return;
+  if (msg.event !== 'item_sold') return;
+
+  const p = msg.payload;
+  if (!p) return;
+
+  const slug = p.collection?.slug || 'unknown';
+  const name = slug.replace(/-/g, ' ');
+
+  // Sale price in ETH
+  let ethPrice = 0;
+  if (p.sale_price && p.payment_token) {
+    const dec = parseInt(p.payment_token.decimals || 18);
+    ethPrice = parseFloat(p.sale_price) / Math.pow(10, dec);
+    // Convert to ETH value if usd_price is set (handles WETH etc.)
+    if (p.payment_token.eth_price) {
+      ethPrice = ethPrice * parseFloat(p.payment_token.eth_price);
+    }
+  }
+
+  const sale = {
+    ts: Date.now(),
+    slug,
+    name,
+    ethPrice,
+    txHash: p.transaction?.hash || '',
+    permalink: p.item?.permalink || `https://opensea.io/collection/${slug}`
+  };
+
+  sales.push(sale);
+
+  // Update collection index
+  if (!collections[slug]) {
+    collections[slug] = { slug, name, sales: [] };
+  }
+  collections[slug].sales.push(sale);
+  collections[slug].lastTs = sale.ts;
+
+  // Spark data (1-min buckets, keep 12)
+  if (!sparkData[slug]) sparkData[slug] = new Array(12).fill(0);
+  updateSpark(slug, sale.ts);
+
+  // Feed ticker
+  addFeedItem(slug, name, ethPrice);
+
+  // Pulse
+  triggerPulse(slug);
+
+  // Immediate render on first sale
+  if (sales.length === 1) render();
+}
+
+// ──────────────────────────────────────────────
+// SPARK DATA (12 one-minute buckets)
+// ──────────────────────────────────────────────
+function updateSpark(slug, ts) {
+  // We'll recompute sparks from the sales array during render
+}
+
+function getSparkBuckets(slug) {
+  const now = Date.now();
+  const buckets = new Array(12).fill(0);
+  const colSales = collections[slug]?.sales || [];
+  for (const s of colSales) {
+    const ageMs = now - s.ts;
+    const bucket = Math.floor(ageMs / 60000); // which minute ago
+    if (bucket < 12) {
+      buckets[11 - bucket]++;
+    }
+  }
+  return buckets;
+}
+
+// ──────────────────────────────────────────────
+// PULSE
+// ──────────────────────────────────────────────
+function triggerPulse(slug) {
+  const el = document.getElementById(`pulse-${slug}`);
+  if (el) {
+    el.classList.remove('active');
+    void el.offsetWidth;
+    el.classList.add('active');
+    clearTimeout(pulseTimers[slug]);
+    pulseTimers[slug] = setTimeout(() => el.classList.remove('active'), 1200);
+  }
+}
+
+// ──────────────────────────────────────────────
+// FEED TICKER
+// ──────────────────────────────────────────────
+function addFeedItem(slug, name, eth) {
+  const label = name.length > 20 ? name.slice(0, 20) + '…' : name;
+  const ethStr = eth > 0 ? eth.toFixed(3) + ' ETH' : 'N/A';
+  const html = `<span class="feed-item">
+    <span class="fi-col">${label}</span>
+    <span class="fi-sep">·</span>
+    <span class="fi-price">${ethStr}</span>
+  </span>`;
+  feedItems.push(html);
+  if (feedItems.length > 80) feedItems.shift();
+
+  const fi = document.getElementById('feedInner');
+  if (fi) {
+    // Duplicate for seamless loop
+    const content = feedItems.join('');
+    fi.innerHTML = content + content;
+  }
+  document.getElementById('feedWrap').style.display = '';
+}
+
+// ──────────────────────────────────────────────
+// RENDER
+// ──────────────────────────────────────────────
+function render() {
+  const now = Date.now();
+  const cutoff = windowMinutes > 0 ? now - windowMinutes * 60 * 1000 : 0;
+  const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+
+  // Build display rows
+  let rows = [];
+  for (const slug of Object.keys(collections)) {
+    const col = collections[slug];
+    const filtered = cutoff > 0
+      ? col.sales.filter(s => s.ts >= cutoff)
+      : col.sales;
+    if (filtered.length === 0) continue;
+    if (q && !col.slug.includes(q) && !col.name.toLowerCase().includes(q)) continue;
+
+    const volume = filtered.reduce((a, s) => a + s.ethPrice, 0);
+    const count  = filtered.length;
+    const avg    = volume / count;
+    const top    = Math.max(...filtered.map(s => s.ethPrice));
+    const lastTs = col.lastTs;
+
+    rows.push({ slug, name: col.name, volume, count, avg, top, lastTs });
+  }
+
+  // Sort
+  rows.sort((a, b) => {
+    if (sortKey === 'count')  return b.count  - a.count;
+    if (sortKey === 'avg')    return b.avg     - a.avg;
+    if (sortKey === 'top')    return b.top     - a.top;
+    return b.volume - a.volume;
+  });
+
+  // Stats
+  const windowSales = cutoff > 0 ? sales.filter(s => s.ts >= cutoff) : sales;
+  const totalVol = windowSales.reduce((a, s) => a + s.ethPrice, 0);
+  const avgSale  = windowSales.length > 0 ? totalVol / windowSales.length : 0;
+
+  // Sales per minute (over the window or last 5min if ALL)
+  const rateWindow = windowMinutes > 0 ? windowMinutes : 5;
+  const rateCutoff = now - rateWindow * 60 * 1000;
+  const rateSales  = sales.filter(s => s.ts >= rateCutoff).length;
+  const rate = rateSales / rateWindow;
+
+  document.getElementById('statTotal').textContent       = windowSales.length.toLocaleString();
+  document.getElementById('statVolume').textContent      = totalVol.toFixed(2);
+  document.getElementById('statCollections').textContent = rows.length;
+  document.getElementById('statRate').textContent        = rate.toFixed(1);
+  document.getElementById('statAvg').textContent         = avgSale.toFixed(3);
+
+  // Table
+  const tbody = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  // Track existing rows to flash new data
+  const existingRows = {};
+  for (const tr of tbody.querySelectorAll('tr[data-slug]')) {
+    existingRows[tr.dataset.slug] = {
+      count: parseInt(tr.dataset.count || '0'),
+      vol:   parseFloat(tr.dataset.vol || '0')
+    };
+  }
+
+  let html = '';
+  rows.forEach((row, i) => {
+    const buckets = getSparkBuckets(row.slug);
+    const sparkMax = Math.max(...buckets, 1);
+    const sparkHtml = buckets.map(v => {
+      const pct = Math.round((v / sparkMax) * 100);
+      const h   = Math.max(2, Math.round((v / sparkMax) * 20));
+      return `<div class="sparkbar-cell ${v > 0 ? 'has-data' : ''}" style="height:${h}px;" title="${v} sale${v !== 1 ? 's' : ''}"></div>`;
+    }).join('');
+
+    const prev = existingRows[row.slug];
+    const isNew = !prev || prev.count < row.count;
+    const flashClass = isNew && prev ? 'flash' : '';
+
+    const ethVol = row.volume > 0 ? row.volume.toFixed(3) : '—';
+    const ethAvg = row.avg > 0    ? row.avg.toFixed(3)    : '—';
+    const ethTop = row.top > 0    ? row.top.toFixed(3)    : '—';
+    const ago    = timeAgo(row.lastTs);
+    const openSeaUrl = `https://opensea.io/collection/${row.slug}`;
+    const displayName = row.name.length > 0
+      ? row.name.charAt(0).toUpperCase() + row.name.slice(1)
+      : row.slug;
+
+    html += `<tr class="${flashClass}" data-slug="${row.slug}" data-count="${row.count}" data-vol="${row.volume}">
+      <td>${i + 1}</td>
+      <td>
+        <div class="col-name">
+          <div class="pulse-dot" id="pulse-${row.slug}"></div>
+          <div class="col-slug">
+            <a href="${openSeaUrl}" target="_blank" rel="noopener" title="${row.slug}">${displayName}</a>
+          </div>
+        </div>
+      </td>
+      <td><span class="count-badge">${row.count}</span></td>
+      <td class="vol">${ethVol}</td>
+      <td>${ethAvg}</td>
+      <td class="amber">${ethTop}</td>
+      <td class="muted" style="font-size:11px;">${ago}</td>
+      <td>
+        <div class="sparkbar">${sparkHtml}</div>
+      </td>
+    </tr>`;
+  });
+
+  tbody.innerHTML = html;
+
+  // Re-apply pulse state
+  for (const slug of Object.keys(pulseTimers)) {
+    const el = document.getElementById(`pulse-${slug}`);
+    if (el && el.classList.contains) {
+      // pulse timers still active — keep
+    }
+  }
+}
+
+// ──────────────────────────────────────────────
+// HELPERS
+// ──────────────────────────────────────────────
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 5)  return 'just now';
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
+
+function setWindow(min, btn) {
+  windowMinutes = min;
+  document.querySelectorAll('.win-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function setSort(key, btn) {
+  sortKey = key;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  render();
+}
+
+function setStatus(state, label) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  dot.className  = 'dot' + (state === 'live' ? ' live' : state === 'error' ? ' error' : '');
+  text.textContent = label;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = '';
+}
+
+async function tryInstantKey() {
+  const btn = document.getElementById('instantBtn');
+  const fallback = document.getElementById('instantFallback');
+  btn.disabled = true;
+  btn.textContent = 'Requesting…';
+
+  try {
+    const res = await fetch('https://api.opensea.io/api/v2/auth/keys', { method: 'POST' });
+    if (!res.ok) throw new Error('non-200');
+    const data = await res.json();
+    if (data.api_key) {
+      document.getElementById('apiKeyInput').value = data.api_key;
+      btn.textContent = `Got a key — expires ${new Date(data.expires_at).toLocaleDateString()} ✓`;
+      fallback.style.display = 'none';
+      return;
+    }
+    throw new Error('no key in response');
+  } catch (e) {
+    // Almost certainly CORS — browsers can't read the response either way.
+    // Fall back to a copyable curl command.
+    btn.disabled = false;
+    btn.textContent = "Don't have a key? Try a free instant key →";
+    fallback.style.display = '';
+  }
+}
+
+function copyCurl() {
+  const text = document.getElementById('curlCmd').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  });
+}
+
+function showApp(key) {
+  document.getElementById('connectPanel').style.display = 'none';
+  document.getElementById('app').style.display = '';
+  document.getElementById('keyHint').textContent =
+    `Connected · key: ${key.slice(0, 6)}${'•'.repeat(Math.max(0, key.length - 10))}${key.slice(-4)}`;
+  render();
+}
+</script>
+</body>
+</html>
