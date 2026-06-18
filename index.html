@@ -587,6 +587,55 @@
     font-size: 10px;
   }
 
+  .join-banner {
+    padding: 10px 20px;
+    font-size: 11px;
+    line-height: 1.6;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .join-banner.warn  { background: #2A220A; color: var(--amber); }
+  .join-banner.error { background: #2A0A14; color: var(--red); }
+
+  .diag-wrap {
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .diag-body {
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 8px;
+  }
+
+  .diag-row {
+    display: flex;
+    gap: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+  }
+
+  .diag-row:last-child { border-bottom: none; }
+
+  .diag-t {
+    color: var(--muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .diag-json {
+    color: var(--text);
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
   /* scrollbar */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -649,6 +698,15 @@
   <div class="disconnect-row">
     <span class="key-hint" id="keyHint"></span>
     <button class="btn danger" style="font-size:10px;padding:5px 12px;" onclick="disconnect()">Disconnect</button>
+  </div>
+
+  <!-- JOIN STATUS BANNER -->
+  <div class="join-banner" id="joinBanner" style="display:none;"></div>
+
+  <!-- DIAGNOSTICS -->
+  <div class="diag-wrap">
+    <button class="link-btn" id="diagToggle" onclick="toggleDiagnostics()">Show diagnostics ▾</button>
+    <div class="diag-body" id="diagBody" data-open="0" style="display:none;"></div>
   </div>
 
   <!-- STATS ROW -->
@@ -739,6 +797,14 @@ let windowMinutes = 5;
 let sortKey = 'volume';
 let feedItems = [];
 let refCount = 10;
+let joinRef = null;
+let joinStatus = 'pending'; // pending | ok | error
+let rawLog = [];           // last N raw frames for diagnostics
+const FALLBACK_COLLECTIONS = [
+  'boredapeyachtclub', 'pudgypenguins', 'doodles-official',
+  'azuki', 'cryptopunks', 'mutant-ape-yacht-club'
+];
+let usingFallback = false;
 
 // Per-collection pulse timers
 let pulseTimers = {};
@@ -769,13 +835,23 @@ function connect() {
     setStatus('live', 'LIVE');
     showApp(key);
 
-    // Join all collections
+    // Join all collections (wildcard)
+    joinRef = String(refCount++);
     ws.send(JSON.stringify({
       topic: 'collection:*',
       event: 'phx_join',
       payload: {},
-      ref: String(refCount++)
+      ref: joinRef
     }));
+
+    // If we don't hear back within 8s, treat as no reply (some keys never
+    // get a phx_reply for wildcard joins) and just wait for events.
+    setTimeout(() => {
+      if (joinStatus === 'pending') {
+        joinStatus = 'unconfirmed';
+        updateJoinBanner();
+      }
+    }, 8000);
 
     // Heartbeat every 25s
     heartbeatInterval = setInterval(() => {
@@ -796,6 +872,7 @@ function connect() {
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
+      logRaw(msg);
       handleMessage(msg);
     } catch {}
   };
@@ -823,6 +900,10 @@ function disconnect() {
   feedItems = [];
   sparkData = {};
   pulseTimers = {};
+  joinRef = null;
+  joinStatus = 'pending';
+  rawLog = [];
+  usingFallback = false;
 
   document.getElementById('app').style.display = 'none';
   document.getElementById('connectPanel').style.display = '';
@@ -832,24 +913,52 @@ function disconnect() {
 }
 
 function handleMessage(msg) {
-  if (!msg || !msg.event) return;
+  if (!msg) return;
 
-  // Ignore join confirmations and heartbeats
-  if (msg.event === 'phx_reply' || msg.event === 'phx_close') return;
-  if (msg.event !== 'item_sold') return;
+  // ── Join confirmation / error for our wildcard subscription ──
+  if (msg.event === 'phx_reply' && msg.ref === joinRef) {
+    const status = msg.payload?.status;
+    if (status === 'ok') {
+      joinStatus = 'ok';
+      updateJoinBanner();
+    } else {
+      joinStatus = 'error';
+      const reason = msg.payload?.response?.reason
+        || JSON.stringify(msg.payload?.response || {});
+      console.warn('OpenSea wildcard join failed:', reason);
+      updateJoinBanner(reason);
+      joinFallbackCollections();
+    }
+    return;
+  }
 
-  const p = msg.payload;
-  if (!p) return;
+  if (msg.event === 'phx_close' || msg.event === 'phx_error') return;
+
+  // Event type can show up as the Phoenix-level "event" or nested inside
+  // the payload as "event_type" depending on API version.
+  const eventType = msg.event || msg.payload?.event_type;
+  if (eventType !== 'item_sold') return;
+
+  // OpenSea has shipped at least two payload shapes over time:
+  //   { event, payload: { ...fields... } }                  (flat)
+  //   { event, payload: { event_type, payload: {...fields} } } (nested)
+  // Unwrap until we find an object that actually has a "collection" key.
+  let p = msg.payload;
+  if (p && !p.collection && p.payload && p.payload.collection) {
+    p = p.payload;
+  }
+  if (!p || !p.collection) return;
 
   const slug = p.collection?.slug || 'unknown';
   const name = slug.replace(/-/g, ' ');
 
   // Sale price in ETH
   let ethPrice = 0;
-  if (p.sale_price && p.payment_token) {
-    const dec = parseInt(p.payment_token.decimals || 18);
-    ethPrice = parseFloat(p.sale_price) / Math.pow(10, dec);
-    // Convert to ETH value if usd_price is set (handles WETH etc.)
+  const rawPrice = p.sale_price || p.base_price;
+  if (rawPrice && p.payment_token) {
+    const dec = parseInt(p.payment_token.decimals ?? 18);
+    ethPrice = parseFloat(rawPrice) / Math.pow(10, dec);
+    // Convert to ETH value when the token isn't already ETH/WETH 1:1
     if (p.payment_token.eth_price) {
       ethPrice = ethPrice * parseFloat(p.payment_token.eth_price);
     }
@@ -885,6 +994,73 @@ function handleMessage(msg) {
 
   // Immediate render on first sale
   if (sales.length === 1) render();
+}
+
+// ──────────────────────────────────────────────
+// DIAGNOSTICS
+// ──────────────────────────────────────────────
+function logRaw(msg) {
+  rawLog.push({ t: Date.now(), msg });
+  if (rawLog.length > 30) rawLog.shift();
+  renderDiagnostics();
+}
+
+function updateJoinBanner(reason) {
+  const banner = document.getElementById('joinBanner');
+  if (!banner) return;
+  if (joinStatus === 'ok') {
+    banner.style.display = 'none';
+  } else if (joinStatus === 'error') {
+    banner.style.display = '';
+    banner.className = 'join-banner error';
+    banner.innerHTML = `Wildcard subscription was rejected${reason ? ` (${escapeHtml(reason)})` : ''}.
+      Falling back to tracking ${FALLBACK_COLLECTIONS.length} high-volume collections individually.`;
+  } else if (joinStatus === 'unconfirmed') {
+    banner.style.display = '';
+    banner.className = 'join-banner warn';
+    banner.innerHTML = `No join confirmation received yet — still listening. If nothing shows up in ~30s,
+      open <strong>Diagnostics</strong> below to see raw frames, or try the per-collection fallback.
+      <button class="link-btn" style="margin-left:6px;" onclick="joinFallbackCollections()">Use fallback collections</button>`;
+  }
+}
+
+function joinFallbackCollections() {
+  if (usingFallback || !ws || ws.readyState !== WebSocket.OPEN) return;
+  usingFallback = true;
+  FALLBACK_COLLECTIONS.forEach(slug => {
+    ws.send(JSON.stringify({
+      topic: `collection:${slug}`,
+      event: 'phx_join',
+      payload: {},
+      ref: String(refCount++)
+    }));
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function renderDiagnostics() {
+  const panel = document.getElementById('diagBody');
+  if (!panel || panel.dataset.open !== '1') return;
+  panel.innerHTML = rawLog.slice().reverse().map(entry => {
+    const t = new Date(entry.t).toLocaleTimeString();
+    const json = escapeHtml(JSON.stringify(entry.msg));
+    return `<div class="diag-row"><span class="diag-t">${t}</span><span class="diag-json">${json}</span></div>`;
+  }).join('') || '<div class="diag-row muted">No frames received yet.</div>';
+}
+
+function toggleDiagnostics() {
+  const panel = document.getElementById('diagBody');
+  const btn = document.getElementById('diagToggle');
+  const isOpen = panel.dataset.open === '1';
+  panel.dataset.open = isOpen ? '0' : '1';
+  panel.style.display = isOpen ? 'none' : '';
+  btn.textContent = isOpen ? 'Show diagnostics ▾' : 'Hide diagnostics ▴';
+  if (!isOpen) renderDiagnostics();
 }
 
 // ──────────────────────────────────────────────
